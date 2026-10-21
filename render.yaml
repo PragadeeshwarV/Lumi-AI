@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: lumi-ai
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_DEFAULT_MODEL
+        value: qwen/qwen3.8-27b
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////app/data/lumi.db
+      - key: WEB_SEARCH_ENABLED
+        value: "true"
+      - key: WEB_SEARCH_PROVIDER
+        value: duckduckgo
+      - key: EMBEDDING_PROVIDER
+        value: local
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "25"
