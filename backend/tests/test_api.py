@@ -218,3 +218,16 @@ def test_csv_data_analysis_workflow(tmp_path):
     agg = analysis_service.execute_aggregation(csv_file, group_col="region", agg_col="revenue", agg_func="sum")
     assert len(agg) > 0
     assert any(r["region"] == "North" for r in agg)
+
+def test_postgresql_url_normalization():
+    def normalize(url: str) -> str:
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return url
+
+    assert normalize("postgres://user:pass@dpg-xxx:5432/lumi_db") == "postgresql+psycopg2://user:pass@dpg-xxx:5432/lumi_db"
+    assert normalize("postgresql://user:pass@dpg-xxx:5432/lumi_db") == "postgresql+psycopg2://user:pass@dpg-xxx:5432/lumi_db"
+    assert normalize("postgresql+psycopg2://user:pass@dpg-xxx:5432/lumi_db") == "postgresql+psycopg2://user:pass@dpg-xxx:5432/lumi_db"
+    assert normalize("sqlite:///./data/lumi.db") == "sqlite:///./data/lumi.db"
