@@ -195,7 +195,9 @@ export const App: React.FC = () => {
               const last = updated[updated.length - 1];
               if (last && last.role === 'assistant') {
                 last.isStreaming = false;
-                last.content = `⚠️ **Provider Notice:** ${errMsg}`;
+                last.content = errMsg.toLowerCase().includes('groq') || errMsg.toLowerCase().includes('rate limit')
+                  ? `⚠️ **Provider Notice:** ${errMsg}`
+                  : `⚠️ ${errMsg}`;
               }
               return updated;
             });

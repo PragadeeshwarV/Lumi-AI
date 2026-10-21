@@ -24,6 +24,11 @@ def test_auth_workflow():
     test_email = "testuser@lumiai.local"
     test_password = "securepassword123"
 
+    # Protected endpoint requires authentication
+    unauth_resp = client.get("/api/v1/auth/me")
+    assert unauth_resp.status_code == 401
+    assert "Authentication required" in unauth_resp.json()["detail"]
+
     # Register
     reg_resp = client.post("/api/v1/auth/register", json={
         "email": test_email,
@@ -42,10 +47,35 @@ def test_auth_workflow():
     token = login_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Me
+    # Me with valid token
     me_resp = client.get("/api/v1/auth/me", headers=headers)
     assert me_resp.status_code == 200
     assert me_resp.json()["email"] == test_email
+
+def test_guest_personal_assistant_access():
+    from app.core.config import settings
+    orig_env = settings.APP_ENV
+    try:
+        # Simulate strict production environment
+        settings.APP_ENV = "production"
+
+        # Settings access without token works seamlessly
+        settings_resp = client.get("/api/v1/settings/")
+        assert settings_resp.status_code == 200
+
+        # Conversation creation without token works seamlessly
+        conv_resp = client.post("/api/v1/conversations/", json={
+            "title": "Guest Session Chat",
+            "assistant_mode": "general",
+            "model_name": "qwen/qwen3.8-27b"
+        })
+        assert conv_resp.status_code == 201
+
+        # Protected administrative/account endpoint is still strictly guarded
+        protected_resp = client.get("/api/v1/auth/me")
+        assert protected_resp.status_code == 401
+    finally:
+        settings.APP_ENV = orig_env
 
 def test_conversation_lifecycle():
     create_resp = client.post("/api/v1/conversations/", json={

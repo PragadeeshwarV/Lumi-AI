@@ -249,8 +249,12 @@ class ChatService:
             # 10. Send Completion Event
             yield f"data: {json.dumps({'type': 'done', 'message_id': asst_msg.id, 'conversation_id': conversation_id})}\n\n"
 
+        except LumiException as e:
+            logger.error(f"LumiException during chat generation: {e.detail}")
+            yield f"data: {json.dumps({'type': 'error', 'message': e.detail})}\n\n"
         except Exception as e:
-            logger.error(f"Error during chat generation: {e}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            logger.error(f"Unexpected error during chat generation: {e}", exc_info=True)
+            err_msg = getattr(e, "detail", None) or str(e) or "An error occurred while generating AI response."
+            yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
 
 chat_service = ChatService()
