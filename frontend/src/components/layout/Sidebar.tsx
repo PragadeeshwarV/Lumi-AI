@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MessageSquare,
   Plus,
@@ -8,6 +8,7 @@ import {
   Trash2,
   Edit2,
   Download,
+  Smartphone,
   Settings,
   FileText,
   BarChart2,
@@ -50,6 +51,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    }
+  };
 
   const filtered = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -260,6 +281,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <Settings size={16} className="text-[#7654B8]" />
           <span>Settings & Memory</span>
         </button>
+
+        {installPrompt && (
+          <button
+            onClick={handleInstallApp}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-[#7654B8] bg-[#EDE5FF] hover:bg-[#D8C8F5] rounded-xl transition-all border border-[#D8C8F5]"
+          >
+            <Smartphone size={16} className="text-[#7654B8]" />
+            <span>Install Lumi App</span>
+          </button>
+        )}
       </div>
     </aside>
   );

@@ -243,6 +243,45 @@ tests/test_api.py::test_csv_data_analysis_workflow PASSED                [100%]
 
 ---
 
+## 📱 Progressive Web App (PWA)
+
+Lumi AI is fully configured as an installable Progressive Web App:
+- **Standalone Android Experience:** Launches in fullscreen standalone mode without browser URL bars.
+- **Service Worker Caching:** Caches static app shell assets (HTML, JS, CSS, icons) safely with background stale-while-revalidate.
+- **Strict Privacy in Cache:** Never caches API requests, chat messages, or credentials.
+- **Installation:** On Chrome for Android or desktop browsers, tap the browser menu (or the in-app "Install Lumi App" button) and choose "Install" / "Add to Home Screen".
+
+---
+
+## 🛡️ Guest Session Isolation & Security
+
+Lumi AI implements zero-friction personal assistant access while strictly isolating every visitor's private data:
+- **Client Session Tokens:** Each browser maintains a private UUID session token in `localStorage` (`lumi_session_id`).
+- **Cryptographic Header Verification:** Sent via `X-Session-ID` on all requests.
+- **Database Partitioning:** Each visitor is mapped to an isolated user record. Users can never view, update, or delete other users' conversations or uploaded documents.
+- **Protected Endpoints:** Account identity (`/api/v1/auth/me`) and administrative actions strictly demand valid JWT Bearer credentials.
+
+---
+
+## 🗄️ Production Database Persistence (Render)
+
+Lumi AI supports both **SQLite** (default zero-config local storage) and **PostgreSQL** (production persistence):
+
+> [!IMPORTANT]
+> On Render's Free tier, the container filesystem is ephemeral. Local SQLite database files (`/app/data/lumi.db`) reset upon container restart or code redeployment.
+
+### To Enable Permanent Persistence on Render:
+1. In your [Render Dashboard](https://dashboard.render.com), click **New +** > **PostgreSQL**.
+2. Give your database a name (e.g. `lumi-db`) and select the **Free** tier.
+3. Once created, copy the **Internal Database URL** (or External URL).
+4. Go to your **lumi-ai** Web Service > **Environment**.
+5. Add/Update the environment variable:
+   * **Key:** `DATABASE_URL`
+   * **Value:** `postgres://...` (Render's connection string)
+6. Save Changes. Lumi AI will automatically convert the connection string, initialize all tables with SQLAlchemy, and persist all conversations, users, settings, and memories permanently across all future redeployments!
+
+---
+
 ## 🐳 Docker Deployment
 
 To launch Lumi AI using Docker Compose:

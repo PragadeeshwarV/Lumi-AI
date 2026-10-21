@@ -5,10 +5,14 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.config import settings, DATA_DIR
 
 db_url = settings.DATABASE_URL
-connect_args = {}
+engine_kwargs = {"echo": False}
+
+# Normalize postgres:// to postgresql:// for SQLAlchemy 2.0+ compatibility
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 if db_url.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
     # Resolve relative sqlite paths to absolute DATA_DIR path
     if "///./data/" in db_url or "///data/" in db_url:
         db_file = DATA_DIR / "lumi.db"
@@ -20,11 +24,15 @@ if db_url.startswith("sqlite"):
         path_str = db_url.replace("sqlite:///", "")
         p = Path(path_str)
         p.parent.mkdir(parents=True, exist_ok=True)
+else:
+    # Production PostgreSQL connection pooling and health checks
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
 
 engine = create_engine(
     db_url,
-    connect_args=connect_args,
-    echo=False
+    **engine_kwargs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

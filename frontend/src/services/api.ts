@@ -13,9 +13,22 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 class ApiService {
   private token: string | null = null;
+  private sessionId: string;
 
   constructor() {
     this.token = localStorage.getItem('lumi_token');
+    let sid = localStorage.getItem('lumi_session_id');
+    if (!sid) {
+      sid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'guest-' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      localStorage.setItem('lumi_session_id', sid);
+    }
+    this.sessionId = sid;
+  }
+
+  getSessionId(): string {
+    return this.sessionId;
   }
 
   setToken(token: string | null) {
@@ -28,7 +41,10 @@ class ApiService {
   }
 
   private getHeaders(custom: Record<string, string> = {}): Record<string, string> {
-    const headers: Record<string, string> = { ...custom };
+    const headers: Record<string, string> = {
+      'X-Session-ID': this.sessionId,
+      ...custom
+    };
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
@@ -129,10 +145,11 @@ class ApiService {
       document_ids?: string[];
     },
     callbacks: {
+      onInit?: (data: { conversation_id: string; title: string; user_message_id?: string }) => void;
       onToken: (token: string) => void;
       onCitations?: (citations: Citation[]) => void;
       onUsage?: (usage: { prompt_tokens: number; completion_tokens: number; latency_ms: number }) => void;
-      onDone: (data: { message_id: string; conversation_id: string }) => void;
+      onDone: (data: { message_id: string; conversation_id: string; title?: string }) => void;
       onError: (err: string) => void;
     },
     signal?: AbortSignal
@@ -146,6 +163,9 @@ class ApiService {
       });
 
       if (!res.ok) {
+        if (res.status === 401 && this.token) {
+          this.setToken(null);
+        }
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.detail || 'Failed to stream response');
       }
@@ -170,7 +190,9 @@ class ApiService {
             const jsonStr = trimmed.slice(6);
             try {
               const data = JSON.parse(jsonStr);
-              if (data.type === 'token') {
+              if (data.type === 'init') {
+                callbacks.onInit?.(data);
+              } else if (data.type === 'token') {
                 callbacks.onToken(data.content);
               } else if (data.type === 'citations') {
                 callbacks.onCitations?.(data.citations);

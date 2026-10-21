@@ -67,6 +67,12 @@ export const App: React.FC = () => {
           message: 'GROQ_API_KEY is not configured in your backend .env file. Real AI responses require an active Groq API key.'
         });
       }
+
+      // Restore active conversation after browser refresh
+      const savedConvId = localStorage.getItem('lumi_active_conv');
+      if (savedConvId && convs.some((c) => c.id === savedConvId)) {
+        await handleSelectConversation(savedConvId);
+      }
     } catch (err) {
       console.error('Failed to load initial data:', err);
     }
@@ -83,10 +89,11 @@ export const App: React.FC = () => {
 
   const handleSelectConversation = async (id: string) => {
     setActiveConversationId(id);
+    localStorage.setItem('lumi_active_conv', id);
     try {
       const conv = await api.getConversation(id);
       setActiveConversation(conv);
-      setSelectedModel(conv.model_name || 'llama-3.3-70b-versatile');
+      setSelectedModel(conv.model_name || 'qwen/qwen3.8-27b');
       setSelectedMode(conv.assistant_mode || 'general');
       setMessages(conv.messages || []);
     } catch (err) {
@@ -98,6 +105,7 @@ export const App: React.FC = () => {
     setActiveConversationId(null);
     setActiveConversation(null);
     setMessages([]);
+    localStorage.removeItem('lumi_active_conv');
   };
 
   const handleSendMessage = async (text: string, documentIds: string[] = []) => {
@@ -137,6 +145,26 @@ export const App: React.FC = () => {
           document_ids: documentIds,
         },
         {
+          onInit: (data) => {
+            if (data.conversation_id) {
+              setActiveConversationId(data.conversation_id);
+              localStorage.setItem('lumi_active_conv', data.conversation_id);
+            }
+            if (data.user_message_id) {
+              const userMsgId = data.user_message_id;
+              setMessages((prev) => {
+                const updated = [...prev];
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].role === 'user' && updated[i].id.startsWith('user-')) {
+                    updated[i].id = userMsgId;
+                    break;
+                  }
+                }
+                return updated;
+              });
+            }
+            handleRefreshConversations();
+          },
           onToken: (tok) => {
             setMessages((prev) => {
               const updated = [...prev];
@@ -182,8 +210,9 @@ export const App: React.FC = () => {
               return updated;
             });
 
-            if (!activeConversationId && data.conversation_id) {
+            if (data.conversation_id) {
               setActiveConversationId(data.conversation_id);
+              localStorage.setItem('lumi_active_conv', data.conversation_id);
             }
             await handleRefreshConversations();
           },

@@ -28,6 +28,34 @@ class AuthService:
         return user
 
     @staticmethod
+    def get_or_create_session_user(db: Session, session_id: str) -> User:
+        """
+        Retrieves or initializes a private, isolated guest account for a browser session.
+        Guarantees that distinct visitors never share chat histories or documents.
+        """
+        import re
+        clean_id = re.sub(r'[^a-zA-Z0-9_-]', '', session_id)[:36]
+        if not clean_id:
+            clean_id = "default"
+
+        guest_email = f"guest_{clean_id}@lumi.guest"
+        user = db.query(User).filter(User.email == guest_email).first()
+        if not user:
+            user = User(
+                email=guest_email,
+                hashed_password=hash_password(f"guest-secret-{clean_id}"),
+                full_name="Guest User"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            settings = UserSettings(user_id=user.id)
+            db.add(settings)
+            db.commit()
+        return user
+
+    @staticmethod
     def register(db: Session, data: UserRegister) -> Tuple[User, str]:
         existing = db.query(User).filter(User.email == data.email).first()
         if existing:

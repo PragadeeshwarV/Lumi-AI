@@ -132,6 +132,9 @@ class ChatService:
             conv.title = clean_title
         db.commit()
 
+        # Emit init event so frontend immediately has confirmed conversation_id, title, and user_message_id
+        yield f"data: {json.dumps({'type': 'init', 'conversation_id': conversation_id, 'title': conv.title, 'user_message_id': user_msg.id})}\n\n"
+
         # 2. Retrieve RAG document context if documents attached
         all_citations: List[Citation] = []
         rag_context = ""
@@ -243,11 +246,13 @@ class ChatService:
                 citations_json=json.dumps([c.model_dump() for c in all_citations]) if all_citations else None
             )
             db.add(asst_msg)
+            from datetime import datetime, timezone
+            conv.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(asst_msg)
 
             # 10. Send Completion Event
-            yield f"data: {json.dumps({'type': 'done', 'message_id': asst_msg.id, 'conversation_id': conversation_id})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'message_id': asst_msg.id, 'conversation_id': conversation_id, 'title': conv.title})}\n\n"
 
         except LumiException as e:
             logger.error(f"LumiException during chat generation: {e.detail}")

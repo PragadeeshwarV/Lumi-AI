@@ -77,6 +77,38 @@ def test_guest_personal_assistant_access():
     finally:
         settings.APP_ENV = orig_env
 
+def test_guest_session_isolation_and_ownership():
+    headers_a = {"X-Session-ID": "session-user-alpha-99"}
+    headers_b = {"X-Session-ID": "session-user-beta-88"}
+
+    # User A creates a private conversation
+    resp_a = client.post("/api/v1/conversations/", json={
+        "title": "Alpha Secret Conversation",
+        "assistant_mode": "general",
+        "model_name": "qwen/qwen3.8-27b"
+    }, headers=headers_a)
+    assert resp_a.status_code == 201
+    conv_a_id = resp_a.json()["id"]
+
+    # User B lists conversations: must NOT see User A's conversation
+    list_b = client.get("/api/v1/conversations/", headers=headers_b)
+    assert list_b.status_code == 200
+    b_conv_ids = [c["id"] for c in list_b.json()]
+    assert conv_a_id not in b_conv_ids
+
+    # User B cannot access User A's conversation
+    get_b = client.get(f"/api/v1/conversations/{conv_a_id}", headers=headers_b)
+    assert get_b.status_code == 404
+
+    # User B cannot delete User A's conversation
+    del_b = client.delete(f"/api/v1/conversations/{conv_a_id}", headers=headers_b)
+    assert del_b.status_code == 404
+
+    # User A can access their own conversation
+    get_a = client.get(f"/api/v1/conversations/{conv_a_id}", headers=headers_a)
+    assert get_a.status_code == 200
+    assert get_a.json()["title"] == "Alpha Secret Conversation"
+
 def test_conversation_lifecycle():
     create_resp = client.post("/api/v1/conversations/", json={
         "title": "Test AI Chat",
