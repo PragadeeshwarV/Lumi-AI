@@ -230,6 +230,7 @@ export const App: React.FC = () => {
               }
               return updated;
             });
+            handleRefreshConversations();
           },
         },
         controller.signal

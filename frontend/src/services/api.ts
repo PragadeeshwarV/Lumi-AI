@@ -59,9 +59,10 @@ class ApiService {
 
   // Conversations
   async getConversations(searchQuery?: string): Promise<Conversation[]> {
-    const url = new URL(`${API_BASE}/conversations/`);
-    if (searchQuery) url.searchParams.append('q', searchQuery);
-    const res = await fetch(url.toString(), {
+    const endpoint = searchQuery
+      ? `${API_BASE}/conversations/?q=${encodeURIComponent(searchQuery)}`
+      : `${API_BASE}/conversations/`;
+    const res = await fetch(endpoint, {
       headers: this.getHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch conversations');
@@ -237,9 +238,10 @@ class ApiService {
   }
 
   async getDocuments(conversation_id?: string): Promise<DocumentItem[]> {
-    const url = new URL(`${API_BASE}/documents/`);
-    if (conversation_id) url.searchParams.append('conversation_id', conversation_id);
-    const res = await fetch(url.toString(), {
+    const endpoint = conversation_id
+      ? `${API_BASE}/documents/?conversation_id=${encodeURIComponent(conversation_id)}`
+      : `${API_BASE}/documents/`;
+    const res = await fetch(endpoint, {
       headers: this.getHeaders()
     });
     if (!res.ok) throw new Error('Failed to fetch documents');

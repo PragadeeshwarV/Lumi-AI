@@ -21,8 +21,20 @@ class GroqProvider(LLMProvider):
                 logger.error(f"Failed to initialize Groq client: {e}")
                 self.client = None
 
+    def _get_client(self):
+        key = settings.GROQ_API_KEY.strip()
+        if not key or len(key) <= 5:
+            return None
+        if not self.client or self.api_key != key:
+            self.api_key = key
+            self.client = groq.AsyncGroq(
+                api_key=self.api_key,
+                timeout=settings.LLM_REQUEST_TIMEOUT
+            )
+        return self.client
+
     def is_available(self) -> bool:
-        return bool(self.api_key and len(self.api_key) > 5)
+        return self._get_client() is not None
 
     def get_supported_models(self) -> List[str]:
         return settings.ALLOWED_MODELS
@@ -34,12 +46,13 @@ class GroqProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 2048,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        if not self.is_available():
+        client = self._get_client()
+        if not client:
             raise ProviderConfigurationException(
-                detail="Groq API key is not configured. Please set GROQ_API_KEY in your .env file or backend configuration."
+                detail="Groq API key is not configured. Please set GROQ_API_KEY in your Render environment settings."
             )
 
-        if model not in settings.ALLOWED_MODELS:
+        if not model or model not in settings.ALLOWED_MODELS:
             logger.warning(f"Model '{model}' not in allowlist. Falling back to {settings.GROQ_DEFAULT_MODEL}")
             model = settings.GROQ_DEFAULT_MODEL
 
@@ -48,7 +61,7 @@ class GroqProvider(LLMProvider):
             prompt_tokens = 0
             completion_tokens = 0
 
-            stream = await self.client.chat.completions.create(
+            stream = await client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=max(0.0, min(temperature, 1.5)),
